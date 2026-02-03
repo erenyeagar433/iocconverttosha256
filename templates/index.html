@@ -24,10 +24,23 @@
             width: 100%;
             margin-top: 12px;
             padding: 10px;
+            border-radius: 5px;
+            border: none;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #45a049;
         }
 
         #progress {
             margin-top: 20px;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -46,8 +59,16 @@
 
 <script>
 function start() {
-    const api = document.getElementById("apikey").value;
+    const api = document.getElementById("apikey").value.trim();
     const file = document.getElementById("file").files[0];
+    const div = document.getElementById("progress");
+
+    if (!api || !file) {
+        div.innerHTML = "Please provide API key and select a file.";
+        return;
+    }
+
+    div.innerHTML = "Uploading file...";
 
     const form = new FormData();
     form.append("apikey", api);
@@ -55,7 +76,16 @@ function start() {
 
     fetch("/upload", { method: "POST", body: form })
     .then(r => r.json())
-    .then(data => checkStatus(data.job_id));
+    .then(data => {
+        if (data.job_id) {
+            checkStatus(data.job_id);
+        } else {
+            div.innerHTML = "Failed to start job.";
+        }
+    })
+    .catch(err => {
+        div.innerHTML = "Upload error: " + err;
+    });
 }
 
 function checkStatus(job) {
@@ -65,17 +95,26 @@ function checkStatus(job) {
         fetch("/status/" + job)
         .then(r => r.json())
         .then(d => {
-            div.innerHTML = "Progress: " + d.progress + "%";
+            if (!d.status) return;
+
+            if (d.status === "processing" || d.status === "queued") {
+                div.innerHTML = "Progress: " + (d.progress || 0) + "%";
+            }
 
             if (d.status === "done") {
                 clearInterval(timer);
+                div.innerHTML = "Done! Download starting...";
                 window.location = "/download/" + job;
             }
 
             if (d.status === "error") {
                 clearInterval(timer);
-                div.innerHTML = "Error occurred";
+                div.innerHTML = "Error occurred: " + (d.error || "Unknown error");
             }
+        })
+        .catch(err => {
+            clearInterval(timer);
+            div.innerHTML = "Status check error: " + err;
         });
     }, 3000);
 }
