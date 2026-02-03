@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VT Hash → SHA256 Converter</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: #111;
+            color: white;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .card {
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 10px;
+            width: 400px;
+            margin: auto;
+        }
+
+        input, button {
+            width: 100%;
+            margin-top: 12px;
+            padding: 10px;
+        }
+
+        #progress {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="card">
+    <h2>VirusTotal Hash Converter</h2>
+
+    <input type="text" id="apikey" placeholder="VirusTotal API Key">
+    <input type="file" id="file">
+    <button onclick="start()">Start</button>
+
+    <div id="progress"></div>
+</div>
+
+<script>
+function start() {
+    const api = document.getElementById("apikey").value;
+    const file = document.getElementById("file").files[0];
+
+    const form = new FormData();
+    form.append("apikey", api);
+    form.append("file", file);
+
+    fetch("/upload", { method: "POST", body: form })
+    .then(r => r.json())
+    .then(data => checkStatus(data.job_id));
+}
+
+function checkStatus(job) {
+    const div = document.getElementById("progress");
+
+    const timer = setInterval(() => {
+        fetch("/status/" + job)
+        .then(r => r.json())
+        .then(d => {
+            div.innerHTML = "Progress: " + d.progress + "%";
+
+            if (d.status === "done") {
+                clearInterval(timer);
+                window.location = "/download/" + job;
+            }
+
+            if (d.status === "error") {
+                clearInterval(timer);
+                div.innerHTML = "Error occurred";
+            }
+        });
+    }, 3000);
+}
+</script>
+
+</body>
+</html>
